@@ -12,7 +12,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class Server {
+public class server {
 
     public static void main(String args[]) throws IOException {
         // Primitives used to store the confimation code from the Client and get the initial tcp port from cmd line.

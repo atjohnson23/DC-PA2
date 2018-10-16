@@ -14,7 +14,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class Client {
+public class client {
 
     public static void main(String args[]) {
         // Primitives to store the initial tcp port, store the confirmation integer, and store the new UDP port.
