@@ -29,13 +29,13 @@ public class server {
         // name of the file into which the received data is written
         String fileName = args[3];
 
-        DatagramSocket recieveSocket = new DatagramSocket();
+        DatagramSocket recieveSocket = new DatagramSocket(recieveFromEmulator);
 
 
         boolean morePackets = true;
 
         //byte array to store contents of recieved packets
-        byte[] inputBuffer = new byte[42];
+        byte[] inputBuffer = new byte[1000];
 
         //
         ByteArrayInputStream byteInput;
@@ -50,11 +50,15 @@ public class server {
         {
             recieveSocket.receive(dgPacket);
 
+            System.out.println(dgPacket.getData());
+
             byteInput = new ByteArrayInputStream(inputBuffer);
 
             objectInput = new ObjectInputStream(byteInput);
 
             receivePacket = (packet) objectInput.readObject();
+
+            objectInput.close();
 
             System.out.println(receivePacket.getData());
 

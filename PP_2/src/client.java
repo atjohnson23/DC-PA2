@@ -100,13 +100,16 @@ public class client {
                         }
                     }
 
-                    packet toServer = new packet(1, 0, chunkArray.length, chunkArray.toString()) ;
+                    String packetData = new String(chunkArray, 0, chunkArray.length) ;
 
-                    ByteArrayOutputStream toByteArray = new ByteArrayOutputStream() ;
-                    ObjectOutputStream packetObjectStream = new ObjectOutputStream(toByteArray) ;
+                    packet toServer = new packet(1, 0, chunkArray.length, packetData) ;
+
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
+                    ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
                     packetObjectStream.writeObject(toServer) ;
-                    byte[] toServerArray;
-                    toServerArray = toByteArray.toByteArray() ;
+                    packetObjectStream.flush();
+                    byte[] toServerArray ;
+                    toServerArray = outputStream.toByteArray() ;
 
 
                     // Creates the datagram packet to send to the server, giving it the necessary parameters to set
@@ -114,6 +117,8 @@ public class client {
                     // the host and the port to the one sent back by the server. Sends the packet.
                     DatagramPacket udpPacket = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort) ;
                     emulatorSocket.send(udpPacket) ;
+
+                    System.out.println(udpPacket.getData());
 
                     // Re-initializes the packet. Receives the packet from the Server (This should contain the ack).
                     // Stores this in a byte array which is then printed to the screen for the User.
