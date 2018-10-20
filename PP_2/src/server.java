@@ -14,80 +14,58 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class server {
 
-    public static void main(String args[]) throws IOException {
+    public static void main(String args[]) throws Exception{
         // Primitives used to store the confimation code from the Client and get the initial tcp port from cmd line.
-        int tcpPort = Integer.parseInt(args[0]);
-        int confCode;
 
-        // Primitive used to store the randomly selected port for UDP communication
-        int randomUDPPort = ThreadLocalRandom.current().nextInt(1024, 65535 + 1);
+        //host name for emulator
+        String emulatorName = args[0];
 
-        // Opens the initial TCP socket.
-        try (ServerSocket tcpSocket = new ServerSocket(tcpPort)) {
-            Socket tcpConnectionSocket = tcpSocket.accept();
+        // UDP port number used by the server to receive data from the emulator
+        int recieveFromEmulator = Integer.parseInt(args[1]);
 
-            // Initializes the data input stream which the client has stored the confirmation code in.
-            // Stores this code in the primitive confCode.
-            DataInputStream tcpInputStream = new DataInputStream(tcpConnectionSocket.getInputStream());
-            confCode = tcpInputStream.readInt();
+        // UDP port number used by the emulator to receive ACKs from the server
+        int sendToEmulator = Integer.parseInt(args[2]);
 
-            // Validates confirmation code, and, if correct, stores the random port for UDP communication in the
-            // output stream. Closes the TCP socket connection.
-            if (confCode == 259) {
-                DataOutputStream out = new DataOutputStream(tcpConnectionSocket.getOutputStream());
-                out.writeInt(randomUDPPort);
-                tcpConnectionSocket.close();
-            }
+        // name of the file into which the received data is written
+        String fileName = args[3];
 
-            // Opens a new UDP socket. Creates a byte array to store data packets sent from the client.
-            // A 4 byte chunck was specified to be used for this project.
-            DatagramSocket udpConnectionSocket = new DatagramSocket(randomUDPPort);
-            byte[] datagramBuffer = new byte[4];
-            DatagramPacket ackPacket = new DatagramPacket(datagramBuffer, datagramBuffer.length);
+        DatagramSocket recieveSocket = new DatagramSocket();
 
-            // Prints to the User that negotiation was accepted and displays the port to be used.
-            System.out.println("\nNegotiation detected. Selected the following random port " + randomUDPPort + "\n");
 
-            // Integer used to detect the end of the file sent from the client.
-            int eofInt = 1;
+        boolean morePackets = true;
 
-            // While loop interates until the end of file integer is detected.
-            while(eofInt != 0)
-            {
-                /* Receives the file packet chunks from the client and stores them in a byte array. The receive method
-                will block until the packet is received from the client. The port of this packet is then store in
-                pPort along with the address stored in pAdress. */
-                udpConnectionSocket.receive(ackPacket);
-                byte[] udpFileData = ackPacket.getData() ;
-                InetAddress pAddress = ackPacket.getAddress() ;
-                int pPort = ackPacket.getPort() ;
+        //byte array to store contents of recieved packets
+        byte[] inputBuffer = new byte[42];
 
-                // Stores the packet data in a string to capitalize its contents. Creates a new byte array with this
-                // data.
-                String makeUpper = new String(udpFileData) ;
-                makeUpper = makeUpper.toUpperCase() ;
-                byte[] ackData = makeUpper.getBytes() ;
+        //
+        ByteArrayInputStream byteInput;
 
-                // Stores the ackData byte array in the datagram packet to be sent back to the client.
-                // Sends the packet to the Client.
-                ackPacket = new DatagramPacket(ackData, ackData.length, pAddress, pPort) ;
-                udpConnectionSocket.send(ackPacket);
+        ObjectInputStream objectInput;
 
-                // Creates a new file output stream to write the contents of the original datagram packet to a file.
-                // Writes the data received from the first packet to a file on the Server titles output.txt.
-                FileOutputStream udpOutputSteam = new FileOutputStream("output.txt",true);
-                udpOutputSteam.write(udpFileData) ;
+        DatagramPacket dgPacket = new DatagramPacket(inputBuffer, inputBuffer.length);
 
-                // Gets any integer stored in the udpFileData packet. This integer will be zero once the end of the
-                // file is reached.
-                ByteBuffer eofBuffer = ByteBuffer.wrap(udpFileData) ;
-                eofInt = eofBuffer.getInt() ;
-            }
+        packet receivePacket;
 
-            // Closes the UDP Socket
-            udpConnectionSocket.close() ;
-            }
+        while (morePackets)
+        {
+            recieveSocket.receive(dgPacket);
+
+            byteInput = new ByteArrayInputStream(inputBuffer);
+
+            objectInput = new ObjectInputStream(byteInput);
+
+            receivePacket = (packet) objectInput.readObject();
+
+            System.out.println(receivePacket.getData());
+
+
+
+
+
+
+
         }
     }
+}
 
 
