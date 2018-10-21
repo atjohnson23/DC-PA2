@@ -7,6 +7,7 @@ Citations:
 
 */
 
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -18,7 +19,25 @@ public class server {
         // Primitives used to store the confimation code from the Client and get the initial tcp port from cmd line.
 
         //host name for emulator
-        String emulatorName = args[0];
+        InetAddress emulatorName = null ;
+
+
+        if (args[0].equals("localhost")) {
+            try {
+
+                emulatorName = InetAddress.getLocalHost() ;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // Otherwise the socket address is set to that as specified by the User.
+        } else if (!args[0].equals("localhost")) {
+            try {
+
+                emulatorName = InetAddress.getByName(args[0]);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         // UDP port number used by the server to receive data from the emulator
         int recieveFromEmulator = Integer.parseInt(args[1]);
@@ -30,28 +49,26 @@ public class server {
         String fileName = args[3];
 
         DatagramSocket recieveSocket = new DatagramSocket(recieveFromEmulator);
+        DatagramSocket sendSocket   = new DatagramSocket() ;
 
 
         boolean morePackets = true;
-
-        //byte array to store contents of recieved packets
-        byte[] inputBuffer = new byte[1000];
 
         //
         ByteArrayInputStream byteInput;
 
         ObjectInputStream objectInput;
 
-        DatagramPacket dgPacket = new DatagramPacket(inputBuffer, inputBuffer.length);
-
         packet receivePacket;
 
         while (morePackets)
         {
-            recieveSocket.receive(dgPacket);
+            //byte array to store contents of recieved packets
+            byte[] inputBuffer = new byte[1000];
+            DatagramPacket udpPacket = new DatagramPacket(inputBuffer, inputBuffer.length);
+            recieveSocket.receive(udpPacket);
 
-            System.out.println(dgPacket.getData());
-
+            //deserialize data packet recieved from client
             byteInput = new ByteArrayInputStream(inputBuffer);
 
             objectInput = new ObjectInputStream(byteInput);
@@ -59,16 +76,41 @@ public class server {
             receivePacket = (packet) objectInput.readObject();
 
             objectInput.close();
+            packet ackPacket =null;
+
+            //check if packet is data packet
+            if(receivePacket.getType() == 1) {
+                ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
+            }
+
+            //if not data check if it is EOT packet
+            else if(receivePacket.getType() == 3) {
+                morePackets = false ;
+                ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null) ;
+            }
+            else{
+                System.out.println("Invalid packet type");
+            }
+
+            // serialize ack packet to send to client
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
+            ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
+            packetObjectStream.writeObject(ackPacket) ;
+            packetObjectStream.close();
+            byte[] toClientArray ;
+            toClientArray = outputStream.toByteArray() ;
 
             System.out.println(receivePacket.getData());
 
+            //send serialized ack packet to client
+            udpPacket = new DatagramPacket(toClientArray, toClientArray.length, emulatorName, sendToEmulator) ;
+            sendSocket.send(udpPacket);
 
-
-
-
-
-
+            System.out.println(receivePacket.getSeqNum());
+            System.out.println(receivePacket.getType());
         }
+        recieveSocket.close();
+        sendSocket.close();
     }
 }
 

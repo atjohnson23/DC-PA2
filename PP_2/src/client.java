@@ -29,16 +29,17 @@ public class client {
         File fileToSend = new File(clientFileName) ;
 
         // Initializes the UDP socket to null ;
-        DatagramSocket emulatorSocket = null;
+        DatagramSocket emulatorSocketSend = null;
+        DatagramSocket emulatorSocketReceive = null;
         try {
             // Opens the datagram socket (UDP socket) and prints the Random port the datagram packets will be sent.
-            emulatorSocket = new DatagramSocket();
+            emulatorSocketSend = new DatagramSocket();
+            emulatorSocketReceive = new DatagramSocket(receiveFromPort);
         } catch (SocketException e) {
             e.printStackTrace();
         }
 
         InetAddress emulatorName = null ;
-
 
         if (args[0].equals("localhost")) {
             try {
@@ -57,8 +58,9 @@ public class client {
             }
         }
 
+        DatagramPacket[] udpPacket = new DatagramPacket[8] ;
         // Enters the If statement if the UDP connection socket has been set.
-        if (emulatorSocket != null) {
+        if (emulatorSocketSend != null) {
             // Creates a new byte array which will be used to store the contents of the file to be sent.
             // Initializes the file input stream which will be used to read the contents of the file into byte [].
             byte[] udpFileToSend = new byte[(int) fileToSend.length()];
@@ -75,13 +77,24 @@ public class client {
                 e.printStackTrace();
             }
 
+            packet toServer = null ;
+
             try {
                 // Initializes integer which will be used to step through the udpFileToSend [].
                 int i = 0 ;
+                int seqNum = 0 ;
+                int oldBase = 0 ;
+                int newBase = 0 ;
+                int oldMax = 6 ;
+                int newMax = 6 ;
+                int delta = 0 ;
+                int numOutstandingPackets = 0;
+                boolean moreData = true;
 
                 // Do while loop which iterates until i is greater than the udpFileToSend arrays length.
                 do
                 {
+
                     // Initializes a new byte array to store chunks of the file in 4 byte increments to be sent
                     // to the server.
                     byte[] chunkArray = new byte[30];
@@ -100,14 +113,20 @@ public class client {
                         }
                     }
 
+
+
+
+
                     String packetData = new String(chunkArray, 0, chunkArray.length) ;
 
-                    packet toServer = new packet(1, 0, chunkArray.length, packetData) ;
 
+                    toServer = new packet(1, seqNum, chunkArray.length, packetData) ;
+
+                    System.out.println(toServer.getData());
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
                     ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
                     packetObjectStream.writeObject(toServer) ;
-                    packetObjectStream.flush();
+                    packetObjectStream.close() ;
                     byte[] toServerArray ;
                     toServerArray = outputStream.toByteArray() ;
 
@@ -115,41 +134,129 @@ public class client {
                     // Creates the datagram packet to send to the server, giving it the necessary parameters to set
                     // its length to that of the chunkArray, store the chunkArray and sets the address to that of
                     // the host and the port to the one sent back by the server. Sends the packet.
-                    DatagramPacket udpPacket = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort) ;
-                    emulatorSocket.send(udpPacket) ;
+                    if(moreData) {
+                        udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort) ;
+                        emulatorSocketSend.send(udpPacket[seqNum]) ;
+                    }
 
-                    System.out.println(udpPacket.getData());
+                    //System.out.println(moreData);
+                    if(i == udpFileToSend.length && moreData){
+                        //System.out.println("string");
+                        moreData= false;
+                        oldMax = seqNum;
+                    }
 
-                    // Re-initializes the packet. Receives the packet from the Server (This should contain the ack).
-                    // Stores this in a byte array which is then printed to the screen for the User.
-                    udpPacket = new DatagramPacket(chunkArray, chunkArray.length) ;
-                    emulatorSocket.receive(udpPacket);
-                    byte[] data = udpPacket.getData() ;
-                    System.out.println(new String(data));
+                    //receive condition
+                    if(seqNum == oldMax || !moreData) {
+
+
+                        // Re-initializes the packet. Receives the packet from the Server (This should contain the ack).
+                        // Stores this in a byte array which is then printed to the screen for the User.
+                        byte[] inputBuffer = new byte[1000];
+                        DatagramPacket udpPacketAck = new DatagramPacket(inputBuffer, inputBuffer.length);
+                        emulatorSocketReceive.receive(udpPacketAck);
+
+                        //Deserialize data packet received from client
+                        packet receivePacket = null;
+
+                        ByteArrayInputStream byteInput = new ByteArrayInputStream(inputBuffer);
+
+                        ObjectInputStream objectInput = new ObjectInputStream(byteInput);
+                        try {
+                            receivePacket = (packet) objectInput.readObject();
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                        objectInput.close();
+
+                        //check if packet is an ack
+                        if (receivePacket.getType() == 0) {
+
+                        } else {
+                            System.out.println("invalid");
+                        }
+
+                        newBase = (receivePacket.getSeqNum() + 1) % 8;
+                        if (newBase  > oldBase){
+                            delta = newBase - oldBase;
+
+                        }
+                        else{
+                            delta = newBase - oldBase + 8;
+                        }
+
+                        if(moreData) {
+                            oldMax = (oldMax + delta) % 8;
+                        }
+
+
+                    }
+
+                    seqNum = (seqNum + 1)%8 ;
+                    oldBase = newBase;
 
                     // Exits while loop once the end of the udpFileToSend [] is reached.
-                } while(i < udpFileToSend.length) ;
+                } while(oldBase != oldMax+1) ;
+                System.out.println("End of Loop");
 
-                // Creates a byte buffer which we will use to store our eof int. The integer 0
-                // is placed in the buffer. This will be used to store more complex eof indicators in the future.
-                ByteBuffer eofByteBuffer = ByteBuffer.allocate(4);
-                eofByteBuffer.putInt(0) ;
+                //i < udpFileToSend.length
+                toServer = new packet (3, seqNum, 0, null) ;
 
-                // A new eofByte array reads from the byte buffer, stores this in a new datagramPacket to be sent
-                // to the server. The packet is then sent to the server.
-                byte[] eofByte = eofByteBuffer.array() ;
-                DatagramPacket eofPacket = new DatagramPacket(eofByte, eofByte.length, InetAddress.getLocalHost(), sendToPort) ;
-                emulatorSocket.send(eofPacket) ;
+                // Serialize toServer EOT packet
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
+                ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
+                packetObjectStream.writeObject(toServer) ;
+                packetObjectStream.close() ;
+                byte[] eotArray = outputStream.toByteArray() ;
 
-                // Closes the UDP socket
-                emulatorSocket.close();
+                // Send EOT packet
+                DatagramPacket eotPacket = new DatagramPacket(eotArray, eotArray.length, emulatorName, sendToPort) ;
+                emulatorSocketSend.send(eotPacket);
+
+                eotArray = new byte[1000] ;
+                eotPacket = new DatagramPacket(eotArray, eotArray.length) ;
+
+                emulatorSocketReceive.receive(eotPacket);
+
+                ByteArrayInputStream byteInput;
+
+                ObjectInputStream objectInput;
+
+                byteInput = new ByteArrayInputStream(eotArray);
+
+                objectInput = new ObjectInputStream(byteInput);
+
+                packet receiveEOTPacket = null ;
+
+                try {
+                    receiveEOTPacket = (packet) objectInput.readObject();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                objectInput.close();
+
+                //check if packet is data packet
+                if(receiveEOTPacket.getType() == 2) {
+                    System.out.println("Done");
+                }
+                else{
+                    System.out.println("Invalid packet type");
+                    System.out.println(receiveEOTPacket.getType());
+                    System.out.println(receiveEOTPacket.getData());
+                }
+
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
+            emulatorSocketSend.close();
+            emulatorSocketReceive.close();
             // Closes the UDP socket if a random port was not given by the Server.
         } else {
-            emulatorSocket.close();
+            emulatorSocketSend.close();
+            emulatorSocketReceive.close();
         }
     }
 }
