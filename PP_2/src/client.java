@@ -154,29 +154,43 @@ public class client {
                         // Stores this in a byte array which is then printed to the screen for the User.
                         byte[] inputBuffer = new byte[1000];
                         DatagramPacket udpPacketAck = new DatagramPacket(inputBuffer, inputBuffer.length);
-                        emulatorSocketReceive.receive(udpPacketAck);
-
-                        //Deserialize data packet received from client
-                        packet receivePacket = null;
-
-                        ByteArrayInputStream byteInput = new ByteArrayInputStream(inputBuffer);
-
-                        ObjectInputStream objectInput = new ObjectInputStream(byteInput);
+                        emulatorSocketReceive.setSoTimeout(2000);
                         try {
-                            receivePacket = (packet) objectInput.readObject();
-                        } catch (ClassNotFoundException e) {
-                            e.printStackTrace();
+                            emulatorSocketReceive.receive(udpPacketAck);
+                            //emulatorSocketReceive.setSoTimeout(0);
+
+
+                            //Deserialize data packet received from client
+                            packet receivePacket = null;
+
+                            ByteArrayInputStream byteInput = new ByteArrayInputStream(inputBuffer);
+
+                            ObjectInputStream objectInput = new ObjectInputStream(byteInput);
+                            objectInput.close();
+                            try {
+                                receivePacket = (packet) objectInput.readObject();
+                            } catch (ClassNotFoundException e) {
+                                e.printStackTrace();
+                            }
+
+
+                            //check if packet is an ack
+                            if (receivePacket.getType() == 0) {
+
+                            } else {
+                                System.out.println("invalid");
+                            }
+
+                            newBase = (receivePacket.getSeqNum() + 1) % 8;
                         }
-                        objectInput.close();
 
-                        //check if packet is an ack
-                        if (receivePacket.getType() == 0) {
-
-                        } else {
-                            System.out.println("invalid");
+                        catch (SocketTimeoutException e){
+                            // resend all packets in window
+                            for(int pacNum = oldBase; pacNum == (oldMax+1 % 8); pacNum = (pacNum+1) %8){
+                                emulatorSocketSend.send(udpPacket[pacNum]);
+                            }
+                            seqNum = (seqNum -1) %8;
                         }
-
-                        newBase = (receivePacket.getSeqNum() + 1) % 8;
                         if (newBase  > oldBase){
                             delta = newBase - oldBase;
 
@@ -236,7 +250,7 @@ public class client {
 
                 objectInput.close();
 
-                //check if packet is data packet
+                //check if packet is EOT ACK packet
                 if(receiveEOTPacket.getType() == 2) {
                     System.out.println("Done");
                 }

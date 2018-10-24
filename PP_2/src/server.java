@@ -61,6 +61,8 @@ public class server {
 
         packet receivePacket;
 
+        int expectedSeqNum = 0;
+
         while (morePackets)
         {
             //byte array to store contents of recieved packets
@@ -79,11 +81,17 @@ public class server {
             packet ackPacket =null;
 
             //check if packet is data packet
+
             if(receivePacket.getType() == 1) {
-                ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
+                if(receivePacket.getSeqNum() == expectedSeqNum) {
+
+                    ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
+                    expectedSeqNum = (expectedSeqNum + 1) % 8;
+                }
             }
 
             //if not data check if it is EOT packet
+
             else if(receivePacket.getType() == 3) {
                 morePackets = false ;
                 ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null) ;
