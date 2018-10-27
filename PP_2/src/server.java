@@ -63,8 +63,14 @@ public class server {
 
         int expectedSeqNum = 0;
 
+        boolean firstPacketReceived = false;
+
+        boolean gotPacket = false;
+
+
         while (morePackets)
         {
+            gotPacket = false;
             //byte array to store contents of recieved packets
             byte[] inputBuffer = new byte[1000];
             DatagramPacket udpPacket = new DatagramPacket(inputBuffer, inputBuffer.length);
@@ -83,10 +89,28 @@ public class server {
             //check if packet is data packet
 
             if(receivePacket.getType() == 1) {
+                System.out.println("received Seq Num " + receivePacket.getSeqNum());
+                System.out.println("expected Seq Num " + expectedSeqNum);
                 if(receivePacket.getSeqNum() == expectedSeqNum) {
 
                     ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
                     expectedSeqNum = (expectedSeqNum + 1) % 8;
+                    firstPacketReceived = true;
+                    System.out.println(receivePacket.getData());
+                    gotPacket = true;
+                }
+                else //if (firstPacketReceived)
+                {
+                    /*int reACKSeqNum = 0;
+                    if (expectedSeqNum == 0){
+                        reACKSeqNum = 7;
+                    }
+                    else{
+                        reACKSeqNum = expectedSeqNum -1;
+                    }
+                    ackPacket = new packet(0, reACKSeqNum, 1, "0");
+                    */
+
                 }
             }
 
@@ -95,27 +119,29 @@ public class server {
             else if(receivePacket.getType() == 3) {
                 morePackets = false ;
                 ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null) ;
+                gotPacket = true;
             }
             else{
                 System.out.println("Invalid packet type");
             }
+            if (firstPacketReceived && gotPacket) {
 
-            // serialize ack packet to send to client
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
-            ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
-            packetObjectStream.writeObject(ackPacket) ;
-            packetObjectStream.close();
-            byte[] toClientArray ;
-            toClientArray = outputStream.toByteArray() ;
+                // serialize ack packet to send to client
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream);
+                packetObjectStream.writeObject(ackPacket);
+                packetObjectStream.close();
+                byte[] toClientArray;
+                toClientArray = outputStream.toByteArray();
 
-            System.out.println(receivePacket.getData());
 
-            //send serialized ack packet to client
-            udpPacket = new DatagramPacket(toClientArray, toClientArray.length, emulatorName, sendToEmulator) ;
-            sendSocket.send(udpPacket);
 
-            System.out.println(receivePacket.getSeqNum());
-            System.out.println(receivePacket.getType());
+                //send serialized ack packet to client
+                udpPacket = new DatagramPacket(toClientArray, toClientArray.length, emulatorName, sendToEmulator);
+                sendSocket.send(udpPacket);
+
+
+            }
         }
         recieveSocket.close();
         sendSocket.close();

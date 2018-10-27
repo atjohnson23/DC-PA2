@@ -86,66 +86,65 @@ public class client {
                 int oldBase = 0 ;
                 int newBase = 0 ;
                 int oldMax = 6 ;
-                int newMax = 6 ;
+                //int newMax = 6 ;
                 int delta = 0 ;
-                int numOutstandingPackets = 0;
+                //int numOutstandingPackets = 0;
                 boolean moreData = true;
+                boolean receivedAck = true;
 
                 // Do while loop which iterates until i is greater than the udpFileToSend arrays length.
                 do
                 {
+                    if (receivedAck) {
+                        // Initializes a new byte array to store chunks of the file in 4 byte increments to be sent
+                        // to the server.
+                        byte[] chunkArray = new byte[30];
 
-                    // Initializes a new byte array to store chunks of the file in 4 byte increments to be sent
-                    // to the server.
-                    byte[] chunkArray = new byte[30];
+                        // For loop iterates through the chunkArray until the end of the array is reached.
+                        for (int j = 0; j < chunkArray.length; j += 1) {
+                            // If statement to only store data in the chunkArray if the udpFileToSend arrays length
+                            // has not yet been reached. Prevents us from sending extra garbage bytes to the Server.
+                            if (i < udpFileToSend.length) {
+                                // Sets the byte of the chunck array equal to that of the udpFileToSend array.
+                                // Increments i.
+                                chunkArray[j] = udpFileToSend[i];
+                                i += 1;
+                            }
+                        }
 
-                    // For loop iterates through the chunkArray until the end of the array is reached.
-                    for(int j=0; j<chunkArray.length; j+=1)
-                    {
-                        // If statement to only store data in the chunkArray if the udpFileToSend arrays length
-                        // has not yet been reached. Prevents us from sending extra garbage bytes to the Server.
-                        if(i < udpFileToSend.length)
-                        {
-                            // Sets the byte of the chunck array equal to that of the udpFileToSend array.
-                            // Increments i.
-                            chunkArray[j] = udpFileToSend[i] ;
-                            i+=1 ;
+
+                        String packetData = new String(chunkArray, 0, chunkArray.length);
+
+
+                        toServer = new packet(1, seqNum, chunkArray.length, packetData);
+
+                        System.out.println("packet seq num" + toServer.getSeqNum());
+                        System.out.println(" packet data " + toServer.getData());
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream);
+                        packetObjectStream.writeObject(toServer);
+                        packetObjectStream.close();
+                        byte[] toServerArray;
+                        toServerArray = outputStream.toByteArray();
+
+
+                        // Creates the datagram packet to send to the server, giving it the necessary parameters to set
+                        // its length to that of the chunkArray, store the chunkArray and sets the address to that of
+                        // the host and the port to the one sent back by the server. Sends the packet.
+                        if (moreData) {
+                            udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort);
+                            emulatorSocketSend.send(udpPacket[seqNum]);
+
+
+                        }
+
+                        //System.out.println(moreData);
+                        if (i == udpFileToSend.length && moreData) {
+                            //System.out.println("string");
+                            moreData = false;
+                            oldMax = seqNum;
                         }
                     }
-
-
-
-
-
-                    String packetData = new String(chunkArray, 0, chunkArray.length) ;
-
-
-                    toServer = new packet(1, seqNum, chunkArray.length, packetData) ;
-
-                    System.out.println(toServer.getData());
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
-                    ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
-                    packetObjectStream.writeObject(toServer) ;
-                    packetObjectStream.close() ;
-                    byte[] toServerArray ;
-                    toServerArray = outputStream.toByteArray() ;
-
-
-                    // Creates the datagram packet to send to the server, giving it the necessary parameters to set
-                    // its length to that of the chunkArray, store the chunkArray and sets the address to that of
-                    // the host and the port to the one sent back by the server. Sends the packet.
-                    if(moreData) {
-                        udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort) ;
-                        emulatorSocketSend.send(udpPacket[seqNum]) ;
-                    }
-
-                    //System.out.println(moreData);
-                    if(i == udpFileToSend.length && moreData){
-                        //System.out.println("string");
-                        moreData= false;
-                        oldMax = seqNum;
-                    }
-
                     //receive condition
                     if(seqNum == oldMax || !moreData) {
 
@@ -175,21 +174,59 @@ public class client {
 
 
                             //check if packet is an ack
-                            if (receivePacket.getType() == 0) {
+
+                            boolean repeatedACK = false;
+                            System.out.println("Ack Seq Num = " + receivePacket.getSeqNum());
+                            if (receivePacket.getType() == 0 ) {
+
+                                // check for repeated ack
+                                if (oldBase == 0){
+                                    if (receivePacket.getSeqNum() == 7){
+                                        repeatedACK = true;
+                                    }
+
+                                }
+                                else if (receivePacket.getSeqNum() == oldBase - 1){
+                                    repeatedACK = true;
+                                }
+                                if (!repeatedACK){
+                                    System.out.println("move window forward");
+                                    receivedAck = true;
+
+                                    newBase = (receivePacket.getSeqNum() + 1) % 8;
+                                    System.out.println(("newbase = " + newBase));
+                                }
+
+
 
                             } else {
                                 System.out.println("invalid");
                             }
 
-                            newBase = (receivePacket.getSeqNum() + 1) % 8;
+
                         }
 
                         catch (SocketTimeoutException e){
                             // resend all packets in window
-                            for(int pacNum = oldBase; pacNum == (oldMax+1 % 8); pacNum = (pacNum+1) %8){
+                            System.out.println("socket Timeout");
+                            System.out.println("sequence Number " +seqNum );
+                            System.out.println("old base " + oldBase);
+                            System.out.println("old Max " + oldMax);
+                            receivedAck = false;
+                            for(int pacNum = oldBase; pacNum != (oldMax +1) %8; pacNum = (pacNum+1) %8){
+                                System.out.println(" send packet number " + pacNum);
                                 emulatorSocketSend.send(udpPacket[pacNum]);
                             }
-                            seqNum = (seqNum -1) %8;
+
+                            if (seqNum == 0){
+                                seqNum = 7;
+                            }
+                            else{
+                                seqNum--;
+                            }
+
+
+
                         }
                         if (newBase  > oldBase){
                             delta = newBase - oldBase;
@@ -206,7 +243,9 @@ public class client {
 
                     }
 
-                    seqNum = (seqNum + 1)%8 ;
+                    if(moreData){
+                        seqNum = (seqNum + 1)%8 ;
+                    }
                     oldBase = newBase;
 
                     // Exits while loop once the end of the udpFileToSend [] is reached.
