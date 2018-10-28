@@ -50,23 +50,25 @@ public class server {
 
         boolean morePackets = true;
 
-        //
+        //byte array and object stream initialization
         ByteArrayInputStream byteInput;
-
         ObjectInputStream objectInput;
 
+        //packet object definition
         packet receivePacket;
 
+        //int and boolean definitions
         int expectedSeqNum = 0;
-
         boolean firstPacketReceived = false;
-
         boolean gotPacket;
 
+        // File stream definitions
+        FileOutputStream udpOutputSteam = new FileOutputStream(args[3],false) ;
+        FileOutputStream arrivalLog = new FileOutputStream("arrival.log",false) ;
 
         while (morePackets) {
             gotPacket = false;
-            //byte array to store contents of recieved packets
+            //byte array to store contents of received packets
             byte[] inputBuffer = new byte[1000];
             DatagramPacket udpPacket = new DatagramPacket(inputBuffer, inputBuffer.length);
             recieveSocket.receive(udpPacket);
@@ -85,13 +87,17 @@ public class server {
 
             if (receivePacket.getType() == 1) {
                 System.out.println("received Seq Num " + receivePacket.getSeqNum());
-                System.out.println("expected Seq Num " + expectedSeqNum);
+                System.out.println("expected Seq Num " + expectedSeqNum) ;
+                arrivalLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes()) ;
+                arrivalLog.write(System.getProperty("line.separator").getBytes()) ;
+
                 if (receivePacket.getSeqNum() == expectedSeqNum) {
 
                     ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
                     expectedSeqNum = (expectedSeqNum + 1) % 8;
                     firstPacketReceived = true;
                     System.out.println(receivePacket.getData());
+                    udpOutputSteam.write(receivePacket.getData().getBytes()) ;
                     gotPacket = true;
                 }
             }
