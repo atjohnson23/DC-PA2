@@ -86,6 +86,7 @@ public class client {
                 int delta;
                 boolean moreData = true;
                 boolean receivedAck = true;
+                boolean sentEOT = false;
 
                 // Do while loop which iterates until i is greater than the udpFileToSend arrays length.
                 do {
@@ -109,8 +110,12 @@ public class client {
 
                         String packetData = new String(chunkArray, 0, chunkArray.length);
 
-
-                        toServer = new packet(1, seqNum, chunkArray.length, packetData);
+                        if(moreData) {
+                            toServer = new packet(1, seqNum, chunkArray.length, packetData);
+                        }
+                        else{
+                            toServer = new packet(3, seqNum, 0, null);
+                        }
 
                         System.out.println("packet seq num" + toServer.getSeqNum());
                         System.out.println(" packet data " + toServer.getData());
@@ -131,16 +136,20 @@ public class client {
 
 
                         }
+                        else if(!sentEOT){
+                            udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort);
+                        }
+
 
                         //System.out.println(moreData);
                         if (i == udpFileToSend.length && moreData) {
                             //System.out.println("string");
                             moreData = false;
-                            oldMax = seqNum;
+                            oldMax = (seqNum + 1) % 8;
                         }
                     }
                     //receive condition
-                    if (seqNum == oldMax || !moreData) {
+                    if (seqNum == oldMax || (!moreData && sentEOT)) {
 
 
                         // Re-initializes the packet. Receives the packet from the Server (This should contain the ack).
@@ -172,25 +181,20 @@ public class client {
                             System.out.println("Ack Seq Num = " + receivePacket.getSeqNum());
                             if (receivePacket.getType() == 0) {
 
-                                // check for repeated ack
-                                if (oldBase == 0) {
-                                    if (receivePacket.getSeqNum() == 7) {
-                                        repeatedACK = true;
-                                    }
+                                System.out.println("move window forward");
+                                newBase = (receivePacket.getSeqNum() + 1) % 8;
+                                System.out.println(("newbase = " + newBase));
 
-                                } else if (receivePacket.getSeqNum() == oldBase - 1) {
-                                    repeatedACK = true;
-                                }
-                                if (!repeatedACK) {
-                                    System.out.println("move window forward");
-                                    receivedAck = true;
 
-                                    newBase = (receivePacket.getSeqNum() + 1) % 8;
-                                    System.out.println(("newbase = " + newBase));
-                                }
+                            } else if (receivePacket.getType() == 2){
+                                System.out.println("Received EOTACK");
+                                System.out.println("move window forward");
+                                newBase = (receivePacket.getSeqNum() + 1) % 8;
+                                System.out.println(("newbase = " + newBase));
 
-                            } else {
-                                System.out.println("invalid");
+                            }
+                            else{
+                                System.out.println("invalid packet type");
                             }
                         } catch (SocketTimeoutException e) {
                             // resend all packets in window
@@ -236,53 +240,7 @@ public class client {
                 } while (oldBase != oldMax + 1);
                 System.out.println("End of Loop");
 
-                //i < udpFileToSend.length
-                toServer = new packet(3, seqNum, 0, null);
-
-                // Serialize toServer EOT packet
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream);
-                packetObjectStream.writeObject(toServer);
-                packetObjectStream.close();
-                byte[] eotArray = outputStream.toByteArray();
-
-                // Send EOT packet
-                DatagramPacket eotPacket = new DatagramPacket(eotArray, eotArray.length, emulatorName, sendToPort);
-                emulatorSocketSend.send(eotPacket);
-
-                eotArray = new byte[1000];
-                eotPacket = new DatagramPacket(eotArray, eotArray.length);
-
-                emulatorSocketReceive.receive(eotPacket);
-
-                ByteArrayInputStream byteInput;
-
-                ObjectInputStream objectInput;
-
-                byteInput = new ByteArrayInputStream(eotArray);
-
-                objectInput = new ObjectInputStream(byteInput);
-
-                packet receiveEOTPacket = null;
-
-                try {
-                    receiveEOTPacket = (packet) objectInput.readObject();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-
-                objectInput.close();
-
-                //check if packet is EOT ACK packet
-                if (receiveEOTPacket.getType() == 2) {
-                    System.out.println("Done");
-                } else {
-                    System.out.println("Invalid packet type");
-                    System.out.println(receiveEOTPacket.getType());
-                    System.out.println(receiveEOTPacket.getData());
-                }
-
-
+                
             } catch (IOException e) {
                 e.printStackTrace();
             }
