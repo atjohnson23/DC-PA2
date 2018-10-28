@@ -12,9 +12,6 @@ import java.net.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.io.Serializable;
-
 
 public class client {
 
@@ -25,8 +22,8 @@ public class client {
 
         // Creates a string to store the file name the user wants to send to the server.
         // This string is then converted to a file object.
-        String clientFileName = args[3] ;
-        File fileToSend = new File(clientFileName) ;
+        String clientFileName = args[3];
+        File fileToSend = new File(clientFileName);
 
         // Initializes the UDP socket to null ;
         DatagramSocket emulatorSocketSend = null;
@@ -39,32 +36,32 @@ public class client {
             e.printStackTrace();
         }
 
-        InetAddress emulatorName = null ;
+        InetAddress emulatorName = null;
 
         if (args[0].equals("localhost")) {
             try {
 
-                emulatorName = InetAddress.getLocalHost() ;
+                emulatorName = InetAddress.getLocalHost();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        // Otherwise the socket address is set to that as specified by the User.
+            // Otherwise the socket address is set to that as specified by the User.
         } else if (!args[0].equals("localhost")) {
             try {
 
-                emulatorName = InetAddress.getByName(args[0]) ;
+                emulatorName = InetAddress.getByName(args[0]);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        DatagramPacket[] udpPacket = new DatagramPacket[8] ;
+        DatagramPacket[] udpPacket = new DatagramPacket[8];
         // Enters the If statement if the UDP connection socket has been set.
         if (emulatorSocketSend != null) {
             // Creates a new byte array which will be used to store the contents of the file to be sent.
             // Initializes the file input stream which will be used to read the contents of the file into byte [].
             byte[] udpFileToSend = new byte[(int) fileToSend.length()];
-            FileInputStream udpFileStream = null;
+            FileInputStream udpFileStream;
             try {
                 // Sets the file input stream for the file we want to send. Reads from stream and stores
                 // the output in the byte array. Closes the stream once complete.
@@ -77,24 +74,21 @@ public class client {
                 e.printStackTrace();
             }
 
-            packet toServer = null ;
+            packet toServer;
 
             try {
                 // Initializes integer which will be used to step through the udpFileToSend [].
-                int i = 0 ;
-                int seqNum = 0 ;
-                int oldBase = 0 ;
-                int newBase = 0 ;
-                int oldMax = 6 ;
-                //int newMax = 6 ;
-                int delta = 0 ;
-                //int numOutstandingPackets = 0;
+                int i = 0;
+                int seqNum = 0;
+                int oldBase = 0;
+                int newBase = 0;
+                int oldMax = 6;
+                int delta;
                 boolean moreData = true;
                 boolean receivedAck = true;
 
                 // Do while loop which iterates until i is greater than the udpFileToSend arrays length.
-                do
-                {
+                do {
                     if (receivedAck) {
                         // Initializes a new byte array to store chunks of the file in 4 byte increments to be sent
                         // to the server.
@@ -146,7 +140,7 @@ public class client {
                         }
                     }
                     //receive condition
-                    if(seqNum == oldMax || !moreData) {
+                    if (seqNum == oldMax || !moreData) {
 
 
                         // Re-initializes the packet. Receives the packet from the Server (This should contain the ack).
@@ -174,22 +168,20 @@ public class client {
 
 
                             //check if packet is an ack
-
                             boolean repeatedACK = false;
                             System.out.println("Ack Seq Num = " + receivePacket.getSeqNum());
-                            if (receivePacket.getType() == 0 ) {
+                            if (receivePacket.getType() == 0) {
 
                                 // check for repeated ack
-                                if (oldBase == 0){
-                                    if (receivePacket.getSeqNum() == 7){
+                                if (oldBase == 0) {
+                                    if (receivePacket.getSeqNum() == 7) {
                                         repeatedACK = true;
                                     }
 
-                                }
-                                else if (receivePacket.getSeqNum() == oldBase - 1){
+                                } else if (receivePacket.getSeqNum() == oldBase - 1) {
                                     repeatedACK = true;
                                 }
-                                if (!repeatedACK){
+                                if (!repeatedACK) {
                                     System.out.println("move window forward");
                                     receivedAck = true;
 
@@ -197,77 +189,69 @@ public class client {
                                     System.out.println(("newbase = " + newBase));
                                 }
 
-
-
                             } else {
                                 System.out.println("invalid");
                             }
-
-
-                        }
-
-                        catch (SocketTimeoutException e){
+                        } catch (SocketTimeoutException e) {
                             // resend all packets in window
                             System.out.println("socket Timeout");
-                            System.out.println("sequence Number " +seqNum );
+                            System.out.println("sequence Number " + seqNum);
                             System.out.println("old base " + oldBase);
                             System.out.println("old Max " + oldMax);
                             receivedAck = false;
-                            for(int pacNum = oldBase; pacNum != (oldMax +1) %8; pacNum = (pacNum+1) %8){
+                            for (int pacNum = oldBase; pacNum != (oldMax + 1) % 8; pacNum = (pacNum + 1) % 8) {
                                 System.out.println(" send packet number " + pacNum);
                                 emulatorSocketSend.send(udpPacket[pacNum]);
                             }
 
-                            if (seqNum == 0){
+                            if (seqNum == 0) {
                                 seqNum = 7;
-                            }
-                            else{
+                            } else {
                                 seqNum--;
                             }
 
 
-
                         }
-                        if (newBase  > oldBase){
+
+                        if (newBase > oldBase) {
                             delta = newBase - oldBase;
 
-                        }
-                        else{
+                        } else {
                             delta = newBase - oldBase + 8;
                         }
 
-                        if(moreData) {
+                        if (moreData) {
                             oldMax = (oldMax + delta) % 8;
                         }
 
 
                     }
 
-                    if(moreData){
-                        seqNum = (seqNum + 1)%8 ;
+                    if (moreData) {
+                        seqNum = (seqNum + 1) % 8;
                     }
                     oldBase = newBase;
 
                     // Exits while loop once the end of the udpFileToSend [] is reached.
-                } while(oldBase != oldMax+1) ;
+                } while (oldBase != oldMax + 1);
                 System.out.println("End of Loop");
 
                 //i < udpFileToSend.length
-                toServer = new packet (3, seqNum, 0, null) ;
+                toServer = new packet(3, seqNum, 0, null);
 
                 // Serialize toServer EOT packet
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream() ;
-                ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream) ;
-                packetObjectStream.writeObject(toServer) ;
-                packetObjectStream.close() ;
-                byte[] eotArray = outputStream.toByteArray() ;
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream);
+                packetObjectStream.writeObject(toServer);
+                packetObjectStream.close();
+                byte[] eotArray = outputStream.toByteArray();
 
                 // Send EOT packet
-                DatagramPacket eotPacket = new DatagramPacket(eotArray, eotArray.length, emulatorName, sendToPort) ;
+                DatagramPacket eotPacket = new DatagramPacket(eotArray, eotArray.length, emulatorName, sendToPort);
                 emulatorSocketSend.send(eotPacket);
 
-                eotArray = new byte[1000] ;
-                eotPacket = new DatagramPacket(eotArray, eotArray.length) ;
+                eotArray = new byte[1000];
+                eotPacket = new DatagramPacket(eotArray, eotArray.length);
 
                 emulatorSocketReceive.receive(eotPacket);
 
@@ -279,7 +263,7 @@ public class client {
 
                 objectInput = new ObjectInputStream(byteInput);
 
-                packet receiveEOTPacket = null ;
+                packet receiveEOTPacket = null;
 
                 try {
                     receiveEOTPacket = (packet) objectInput.readObject();
@@ -290,10 +274,9 @@ public class client {
                 objectInput.close();
 
                 //check if packet is EOT ACK packet
-                if(receiveEOTPacket.getType() == 2) {
+                if (receiveEOTPacket.getType() == 2) {
                     System.out.println("Done");
-                }
-                else{
+                } else {
                     System.out.println("Invalid packet type");
                     System.out.println(receiveEOTPacket.getType());
                     System.out.println(receiveEOTPacket.getData());

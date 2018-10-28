@@ -7,25 +7,22 @@ Citations:
 
 */
 
-import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
-import java.nio.ByteBuffer;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class server {
 
-    public static void main(String args[]) throws Exception{
+    public static void main(String args[]) throws Exception {
         // Primitives used to store the confimation code from the Client and get the initial tcp port from cmd line.
 
         //host name for emulator
-        InetAddress emulatorName = null ;
+        InetAddress emulatorName = null;
 
 
         if (args[0].equals("localhost")) {
             try {
 
-                emulatorName = InetAddress.getLocalHost() ;
+                emulatorName = InetAddress.getLocalHost();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -46,10 +43,9 @@ public class server {
         int sendToEmulator = Integer.parseInt(args[2]);
 
         // name of the file into which the received data is written
-        String fileName = args[3];
 
         DatagramSocket recieveSocket = new DatagramSocket(recieveFromEmulator);
-        DatagramSocket sendSocket   = new DatagramSocket() ;
+        DatagramSocket sendSocket = new DatagramSocket();
 
 
         boolean morePackets = true;
@@ -65,11 +61,10 @@ public class server {
 
         boolean firstPacketReceived = false;
 
-        boolean gotPacket = false;
+        boolean gotPacket;
 
 
-        while (morePackets)
-        {
+        while (morePackets) {
             gotPacket = false;
             //byte array to store contents of recieved packets
             byte[] inputBuffer = new byte[1000];
@@ -84,14 +79,14 @@ public class server {
             receivePacket = (packet) objectInput.readObject();
 
             objectInput.close();
-            packet ackPacket =null;
+            packet ackPacket = null;
 
             //check if packet is data packet
 
-            if(receivePacket.getType() == 1) {
+            if (receivePacket.getType() == 1) {
                 System.out.println("received Seq Num " + receivePacket.getSeqNum());
                 System.out.println("expected Seq Num " + expectedSeqNum);
-                if(receivePacket.getSeqNum() == expectedSeqNum) {
+                if (receivePacket.getSeqNum() == expectedSeqNum) {
 
                     ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
                     expectedSeqNum = (expectedSeqNum + 1) % 8;
@@ -99,29 +94,15 @@ public class server {
                     System.out.println(receivePacket.getData());
                     gotPacket = true;
                 }
-                else //if (firstPacketReceived)
-                {
-                    /*int reACKSeqNum = 0;
-                    if (expectedSeqNum == 0){
-                        reACKSeqNum = 7;
-                    }
-                    else{
-                        reACKSeqNum = expectedSeqNum -1;
-                    }
-                    ackPacket = new packet(0, reACKSeqNum, 1, "0");
-                    */
-
-                }
             }
 
             //if not data check if it is EOT packet
 
-            else if(receivePacket.getType() == 3) {
-                morePackets = false ;
-                ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null) ;
+            else if (receivePacket.getType() == 3) {
+                morePackets = false;
+                ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null);
                 gotPacket = true;
-            }
-            else{
+            } else {
                 System.out.println("Invalid packet type");
             }
             if (firstPacketReceived && gotPacket) {
@@ -133,7 +114,6 @@ public class server {
                 packetObjectStream.close();
                 byte[] toClientArray;
                 toClientArray = outputStream.toByteArray();
-
 
 
                 //send serialized ack packet to client
