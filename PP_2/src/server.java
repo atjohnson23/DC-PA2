@@ -44,7 +44,7 @@ public class server {
 
         // name of the file into which the received data is written
 
-        DatagramSocket recieveSocket = new DatagramSocket(recieveFromEmulator);
+        DatagramSocket receiveSocket = new DatagramSocket(recieveFromEmulator);
         DatagramSocket sendSocket = new DatagramSocket();
 
 
@@ -71,7 +71,7 @@ public class server {
             //byte array to store contents of received packets
             byte[] inputBuffer = new byte[1000];
             DatagramPacket udpPacket = new DatagramPacket(inputBuffer, inputBuffer.length);
-            recieveSocket.receive(udpPacket);
+            receiveSocket.receive(udpPacket);
 
             //deserialize data packet recieved from client
             byteInput = new ByteArrayInputStream(inputBuffer);
@@ -85,20 +85,15 @@ public class server {
 
             //check if packet is data packet
             arrivalLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes());
-            arrivalLog.write(System.getProperty("line.separator").getBytes());
+            arrivalLog.write("\n".getBytes()) ;
             if (receivePacket.getSeqNum() == expectedSeqNum) {
 
                 if (receivePacket.getType() == 1) {
-                    //System.out.println("received Seq Num " + receivePacket.getSeqNum());
-                    //System.out.println("expected Seq Num " + expectedSeqNum) ;
-
                     ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
                     expectedSeqNum = (expectedSeqNum + 1) % 8;
                     firstPacketReceived = true;
-                    System.out.println(receivePacket.getData());
                     udpOutputSteam.write(receivePacket.getData().getBytes());
                     gotPacket = true;
-
                 }
 
                 //if not data check if it is EOT packet
@@ -125,11 +120,11 @@ public class server {
                 //send serialized ack packet to client
                 udpPacket = new DatagramPacket(toClientArray, toClientArray.length, emulatorName, sendToEmulator);
                 sendSocket.send(udpPacket);
-
-
             }
         }
-        recieveSocket.close();
+
+        // Close the communication sockets
+        receiveSocket.close();
         sendSocket.close();
     }
 }

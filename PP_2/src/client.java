@@ -74,6 +74,16 @@ public class client {
                 e.printStackTrace();
             }
 
+            // File stream definitions
+            FileOutputStream seqNumLog = null;
+            FileOutputStream ackLog = null;
+            try {
+                seqNumLog = new FileOutputStream("seqnum.log",false);
+                ackLog = new FileOutputStream("ack.log",false) ;
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
             packet toServer;
 
             try {
@@ -121,8 +131,6 @@ public class client {
                             toServer = new packet(3, seqNum, 0, null);
                         }
 
-                        System.out.println("packet seq num" + toServer.getSeqNum());
-                        System.out.println(" packet data " + toServer.getData());
                         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                         ObjectOutputStream packetObjectStream = new ObjectOutputStream(outputStream);
                         packetObjectStream.writeObject(toServer);
@@ -138,28 +146,31 @@ public class client {
                             udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort);
                             emulatorSocketSend.send(udpPacket[seqNum]);
 
+                            // Write sequence number to log file
+                            seqNumLog.write(Integer.toString(toServer.getSeqNum()).getBytes()) ;
+                            seqNumLog.write("\n".getBytes()) ;
 
                         }
                         //if there is no more data and an EOT packet has not been sent send EOT
                         else if(!sentEOT){
-                            System.out.println();
                             udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort);
                             emulatorSocketSend.send(udpPacket[seqNum]);
                             sentEOT = true;
                             oldMax = seqNum;
+
+                            // Write sequence number to log file
+                            seqNumLog.write(Integer.toString(toServer.getSeqNum()).getBytes()) ;
+                            seqNumLog.write("\n".getBytes()) ;
                         }
 
 
                         //System.out.println(moreData);
                         if (i == udpFileToSend.length && moreData) {
-                            //System.out.println("string");
                             moreData = false;
-
                         }
                     }
                     //receive condition
                     if (seqNum == oldMax || (!moreData && sentEOT)) {
-
 
                         // Re-initializes the packet. Receives the packet from the Server (This should contain the ack).
                         // Stores this in a byte array which is then printed to the screen for the User.
@@ -168,8 +179,6 @@ public class client {
                         emulatorSocketReceive.setSoTimeout(2000);
                         try {
                             emulatorSocketReceive.receive(udpPacketAck);
-                            //emulatorSocketReceive.setSoTimeout(0);
-
 
                             //Deserialize data packet received from client
                             packet receivePacket = null;
@@ -184,24 +193,23 @@ public class client {
                                 e.printStackTrace();
                             }
 
-
                             //check if packet is an ack
-
-                            System.out.println("Ack Seq Num = " + receivePacket.getSeqNum());
                             if (receivePacket.getType() == 0) {
-
-                                System.out.println("move window forward");
                                 newBase = (receivePacket.getSeqNum() + 1) % 8;
-                                System.out.println(("newbase = " + newBase));
                                 receivedAck = true;
+
+                                // Write sequence number of ack packet
+                                ackLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes()) ;
+                                ackLog.write("\n".getBytes()) ;
 
 
                             } else if (receivePacket.getType() == 2){
-                                System.out.println("Received EOTACK");
-                                System.out.println("move window forward");
                                 newBase = (receivePacket.getSeqNum() + 1) % 8;
-                                System.out.println(("newbase = " + newBase));
                                 receivedEOTAck = true;
+
+                                // Write sequence number of ack packet
+                                ackLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes()) ;
+                                ackLog.write("\n".getBytes()) ;
 
                             }
                             else{
@@ -209,14 +217,13 @@ public class client {
                             }
                         } catch (SocketTimeoutException e) {
                             // resend all packets in window
-                            System.out.println("socket Timeout");
-                            System.out.println("sequence Number " + seqNum);
-                            System.out.println("old base " + oldBase);
-                            System.out.println("old Max " + oldMax);
                             receivedAck = false;
                             for (int pacNum = oldBase; pacNum != (oldMax + 1) % 8; pacNum = (pacNum + 1) % 8) {
-                                System.out.println(" send packet number " + pacNum);
                                 emulatorSocketSend.send(udpPacket[pacNum]);
+
+                                // Write sequence number to log file
+                                seqNumLog.write(Integer.toString(pacNum).getBytes()) ;
+                                seqNumLog.write("\n".getBytes()) ;
                             }
 
                             if (seqNum == 0) {
@@ -224,8 +231,6 @@ public class client {
                             } else {
                                 seqNum--;
                             }
-
-
                         }
 
                         if (newBase > oldBase) {
@@ -238,8 +243,6 @@ public class client {
                         if (moreData) {
                             oldMax = (oldMax + delta) % 8;
                         }
-
-
                     }
 
                     if (!sentEOT) {
@@ -249,18 +252,18 @@ public class client {
 
                     // Exits while loop once the end of the udpFileToSend [] is reached.
 
-                }while (!receivedEOTAck);//(oldBase != (oldMax + 1) % 8);
-                System.out.println("End of Loop");
-
+                }while (!receivedEOTAck);
 
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
+            // Closes the UDP socket if a random port was not given by the Server.
             emulatorSocketSend.close();
             emulatorSocketReceive.close();
-            // Closes the UDP socket if a random port was not given by the Server.
+
         } else {
+            // Closes the UDP socket if a random port was not given by the Server.
             emulatorSocketSend.close();
             emulatorSocketReceive.close();
         }
