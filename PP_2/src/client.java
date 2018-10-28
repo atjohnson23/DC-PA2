@@ -86,7 +86,9 @@ public class client {
                 int delta;
                 boolean moreData = true;
                 boolean receivedAck = true;
+                //used to determine if EOT packet has been sent
                 boolean sentEOT = false;
+                //used to determine if EOT ACK has been received. This is the escape case for the primary loop
                 boolean receivedEOTAck = false;
 
                 // Do while loop which iterates until i is greater than the udpFileToSend arrays length.
@@ -114,6 +116,7 @@ public class client {
                         if(moreData) {
                             toServer = new packet(1, seqNum, chunkArray.length, packetData);
                         }
+                        //if there is no more data to send create EOT packet
                         else{
                             toServer = new packet(3, seqNum, 0, null);
                         }
@@ -137,6 +140,7 @@ public class client {
 
 
                         }
+                        //if there is no more data and an EOT packet has not been sent send EOT
                         else if(!sentEOT){
                             System.out.println();
                             udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort);
