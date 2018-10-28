@@ -87,6 +87,7 @@ public class client {
                 boolean moreData = true;
                 boolean receivedAck = true;
                 boolean sentEOT = false;
+                boolean receivedEOTAck = false;
 
                 // Do while loop which iterates until i is greater than the udpFileToSend arrays length.
                 do {
@@ -137,7 +138,11 @@ public class client {
 
                         }
                         else if(!sentEOT){
+                            System.out.println();
                             udpPacket[seqNum] = new DatagramPacket(toServerArray, toServerArray.length, emulatorName, sendToPort);
+                            emulatorSocketSend.send(udpPacket[seqNum]);
+                            sentEOT = true;
+                            oldMax = seqNum;
                         }
 
 
@@ -145,7 +150,7 @@ public class client {
                         if (i == udpFileToSend.length && moreData) {
                             //System.out.println("string");
                             moreData = false;
-                            oldMax = (seqNum + 1) % 8;
+
                         }
                     }
                     //receive condition
@@ -177,13 +182,14 @@ public class client {
 
 
                             //check if packet is an ack
-                            boolean repeatedACK = false;
+
                             System.out.println("Ack Seq Num = " + receivePacket.getSeqNum());
                             if (receivePacket.getType() == 0) {
 
                                 System.out.println("move window forward");
                                 newBase = (receivePacket.getSeqNum() + 1) % 8;
                                 System.out.println(("newbase = " + newBase));
+                                receivedAck = true;
 
 
                             } else if (receivePacket.getType() == 2){
@@ -191,6 +197,7 @@ public class client {
                                 System.out.println("move window forward");
                                 newBase = (receivePacket.getSeqNum() + 1) % 8;
                                 System.out.println(("newbase = " + newBase));
+                                receivedEOTAck = true;
 
                             }
                             else{
@@ -231,16 +238,17 @@ public class client {
 
                     }
 
-                    if (moreData) {
+                    if (!sentEOT) {
                         seqNum = (seqNum + 1) % 8;
                     }
                     oldBase = newBase;
 
                     // Exits while loop once the end of the udpFileToSend [] is reached.
-                } while (oldBase != oldMax + 1);
+
+                }while (!receivedEOTAck);//(oldBase != (oldMax + 1) % 8);
                 System.out.println("End of Loop");
 
-                
+
             } catch (IOException e) {
                 e.printStackTrace();
             }

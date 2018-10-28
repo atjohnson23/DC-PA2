@@ -63,8 +63,8 @@ public class server {
         boolean gotPacket;
 
         // File stream definitions
-        FileOutputStream udpOutputSteam = new FileOutputStream(args[3],false) ;
-        FileOutputStream arrivalLog = new FileOutputStream("arrival.log",false) ;
+        FileOutputStream udpOutputSteam = new FileOutputStream(args[3], false);
+        FileOutputStream arrivalLog = new FileOutputStream("arrival.log", false);
 
         while (morePackets) {
             gotPacket = false;
@@ -84,32 +84,32 @@ public class server {
             packet ackPacket = null;
 
             //check if packet is data packet
+            arrivalLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes());
+            arrivalLog.write(System.getProperty("line.separator").getBytes());
+            if (receivePacket.getSeqNum() == expectedSeqNum) {
 
-            if (receivePacket.getType() == 1) {
-                System.out.println("received Seq Num " + receivePacket.getSeqNum());
-                System.out.println("expected Seq Num " + expectedSeqNum) ;
-                arrivalLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes()) ;
-                arrivalLog.write(System.getProperty("line.separator").getBytes()) ;
-
-                if (receivePacket.getSeqNum() == expectedSeqNum) {
+                if (receivePacket.getType() == 1) {
+                    //System.out.println("received Seq Num " + receivePacket.getSeqNum());
+                    //System.out.println("expected Seq Num " + expectedSeqNum) ;
 
                     ackPacket = new packet(0, receivePacket.getSeqNum(), 1, "0");
                     expectedSeqNum = (expectedSeqNum + 1) % 8;
                     firstPacketReceived = true;
                     System.out.println(receivePacket.getData());
-                    udpOutputSteam.write(receivePacket.getData().getBytes()) ;
+                    udpOutputSteam.write(receivePacket.getData().getBytes());
                     gotPacket = true;
+
                 }
-            }
 
-            //if not data check if it is EOT packet
+                //if not data check if it is EOT packet
 
-            else if (receivePacket.getType() == 3) {
-                morePackets = false;
-                ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null);
-                gotPacket = true;
-            } else {
-                System.out.println("Invalid packet type");
+                else if (receivePacket.getType() == 3) {
+                    morePackets = false;
+                    ackPacket = new packet(2, receivePacket.getSeqNum(), 0, null);
+                    gotPacket = true;
+                } else {
+                    System.out.println("Invalid packet type");
+                }
             }
             if (firstPacketReceived && gotPacket) {
 
