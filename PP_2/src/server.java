@@ -1,10 +1,19 @@
 /*
-Purpose:
+Authors: Chandler Musgrove (jcm982) & Adam Johnson (atj113)
 
-Functionality:
+Purpose: The purpose of this code is to implement a server socket program which utilizes go-back-in to handle packet
+loss.
+
+Functionality: This code implements go-back-in using a cumulative ack. The server is tasked with sending an ack for
+each packet it receives from the client as long as the packet is labeled with the sequence number it is expecting.
+Duplicate packets (packets sharing the same sequence number) or out of sequence packets are discarded. Once the server
+receives an EOT packet from the client, it returns an EOT ack.
 
 Citations:
-
+Programming Assignment #2 PDF
+https://docs.oracle.com/javase/7/docs/api/java/io/ByteArrayOutputStream.html
+https://stackoverflow.com/questions/17940423/send-object-over-udp-in-java
+https://stackoverflow.com/questions/3997459/send-and-receive-serialize-object-on-udp
 */
 
 import java.io.*;
@@ -85,7 +94,7 @@ public class server {
 
             //check if packet is data packet
             arrivalLog.write(Integer.toString(receivePacket.getSeqNum()).getBytes());
-            arrivalLog.write("\n".getBytes()) ;
+            arrivalLog.write("\n".getBytes());
             if (receivePacket.getSeqNum() == expectedSeqNum) {
 
                 if (receivePacket.getType() == 1) {

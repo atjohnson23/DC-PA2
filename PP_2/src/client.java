@@ -1,10 +1,27 @@
 /*
-Pupose:
+Authors: Chandler Musgrove (jcm982) & Adam Johnson (atj113)
 
-Functionality:
+Purpose: The purpose of this code is to implement a client socket program which utilizes go-back-in to handle packet
+loss.
+
+Functionality: This code implements go-back-in through a cumulative ack. This is done by establishing a window of
+which is composed of packets with unique sequence numbers. This window is first filled, meaning each packet is generated
+with a unique sequence number from the command line file given to the program and then sent to server. Once the window
+is filled, the client waits for an ack packet from the server. The ack does not need to be received in proper order from
+0 to 7, rather the window will slide forward with regards to the sequence number received from the server. This means
+the window may slide forward by many packets, allowing the client to send multiple packets again to the server in order
+to properly fill the window again. If an ack is not received from the server within 2 seconds of the oldest packet being
+sent, the socket will timeout, which will the cause the client to resend every packet within its window to the server
+and then wait for an ack from the server again, reinitializing the timer to 2 seconds. This process will stop once the
+entire contents of the file has been sent. The server then sends an EOT packet to server which tells the server it is
+done using the socket and is ready to terminate the connection. The client waits for an EOT ack from the server, closes
+the sending and receiving sockets and ends.
 
 Citations:
-
+Programming Assignment #2 PDF
+https://docs.oracle.com/javase/7/docs/api/java/io/ByteArrayOutputStream.html
+https://stackoverflow.com/questions/17940423/send-object-over-udp-in-java
+https://stackoverflow.com/questions/3997459/send-and-receive-serialize-object-on-udp
 */
 
 import java.io.*;
@@ -25,7 +42,8 @@ public class client {
         String clientFileName = args[3];
         File fileToSend = new File(clientFileName);
 
-        // Initializes the UDP socket to null ;
+        // Initializes the UDP socket to null
+        // One socket is used for receiving packets while the other is used to send packets.
         DatagramSocket emulatorSocketSend = null;
         DatagramSocket emulatorSocketReceive = null;
         try {
